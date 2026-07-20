@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Marginalia — Foundations toward IB Maths &amp; Physics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Source+Serif+4:ital,wght@0,400;0,500;0,600;1,400&family=Caveat:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --paper:#f2eee2;
+    --paper-line:#d9d2bd;
+    --ink:#212a35;
+    --ink-soft:#4c5560;
+    --red:#b23a2e;
+    --red-soft:#c85a4c;
+    --math:#3c4a8f;
+    --math-soft:#e5e7f4;
+    --physics:#1f6f61;
+    --physics-soft:#e1efe9;
+    --gold:#d99a2b;
+    --paper-edge: rgba(33,42,53,0.08);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      repeating-linear-gradient(var(--paper) 0px, var(--paper) 31px, var(--paper-line) 32px),
+      var(--paper);
+    color:var(--ink);
+    font-family:'Source Serif 4', serif;
+    line-height:1.7;
+    min-height:100vh;
+  }
+  ::selection{ background: var(--gold); color:var(--ink); }
+
+  a{color:inherit;}
+
+  .wrap{ max-width:920px; margin:0 auto; padding: 40px 28px 100px; }
+
+  /* HEADER */
+  header.site{
+    display:flex; align-items:baseline; justify-content:space-between;
+    border-bottom: 3px solid var(--ink);
+    padding-bottom:14px; margin-bottom:8px;
+    flex-wrap:wrap; gap:10px;
+  }
+  .brand{
+    font-family:'Fraunces', serif;
+    font-weight:700; font-size:2rem; letter-spacing:-0.02em;
+  }
+  .brand sup{
+    font-family:'Caveat', cursive;
+    color:var(--red); font-size:0.9rem; font-weight:600;
+    transform: rotate(-6deg); display:inline-block; margin-left:4px;
+  }
+  .tagline{ font-family:'IBM Plex Mono', monospace; font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--ink-soft); }
+
+  /* TABS styled like binder dividers */
+  .tabs{ display:flex; gap:10px; margin: 26px 0 4px; }
+  .tab-btn{
+    font-family:'Fraunces', serif; font-weight:600; font-size:1.05rem;
+    border:2px solid var(--ink); background:var(--paper);
+    padding:10px 22px 8px; cursor:pointer; border-radius:10px 10px 0 0;
+    border-bottom:none; position:relative; top:2px;
+    color:var(--ink-soft);
+  }
+  .tab-btn.active[data-subject="math"]{ background:var(--math-soft); color:var(--math); border-color:var(--math); }
+  .tab-btn.active[data-subject="physics"]{ background:var(--physics-soft); color:var(--physics); border-color:var(--physics); }
+  .tab-panel{ border-top:2px solid var(--ink); padding-top:28px; }
+  .tab-panel[data-subject="math"]{ border-color:var(--math); }
+  .tab-panel[data-subject="physics"]{ border-color:var(--physics); }
+  .hidden{ display:none; }
+
+  /* LESSON LAYOUT: main column + margin column, like a ruled exam notebook */
+  .sheet{ display:grid; grid-template-columns: 1fr 200px; gap: 30px; align-items:start; }
+  @media (max-width:720px){ .sheet{ grid-template-columns: 1fr; } .margin-col{ order:2; } }
+
+  .lesson-title{
+    font-family:'Fraunces', serif; font-size:1.9rem; font-weight:700;
+    margin: 4px 0 2px;
+  }
+  .lesson-kicker{
+    font-family:'IBM Plex Mono', monospace; font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase;
+  }
+  [data-subject="math"] .lesson-kicker{ color:var(--math); }
+  [data-subject="physics"] .lesson-kicker{ color:var(--physics); }
+
+  .lesson-body p{ margin: 0 0 16px; }
+  .lesson-body .eq-block{
+    background: rgba(255,255,255,0.55);
+    border-left: 3px solid var(--ink);
+    padding: 14px 18px; margin: 18px 0; border-radius: 2px;
+    overflow-x:auto;
+  }
+  [data-subject="math"] .eq-block{ border-color:var(--math); }
+  [data-subject="physics"] .eq-block{ border-color:var(--physics); }
+
+  .worked{
+    background: rgba(255,255,255,0.65);
+    border: 1.5px dashed var(--ink-soft);
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin: 22px 0;
+  }
+  .worked h4{
+    font-family:'Fraunces', serif; margin:0 0 10px; font-size:1.05rem;
+  }
+  .step{ margin: 6px 0; padding-left: 4px; }
+  .step .tag{ font-family:'IBM Plex Mono', monospace; font-size:0.7rem; color:var(--ink-soft); margin-right:8px;}
+
+  /* margin column: red pen annotations */
+  .margin-col{ position:relative; padding-top: 60px; }
+  .note{
+    font-family:'Caveat', cursive; color:var(--red); font-size:1.28rem; line-height:1.25;
+    margin-bottom: 34px; transform: rotate(-2deg);
+  }
+  .note:nth-child(odd){ transform: rotate(2deg); }
+  .note .mark{ font-size:1.5rem; }
+  .note-underline{ text-decoration: underline wavy var(--red-soft) 2px; text-underline-offset:4px; }
+
+  /* PRACTICE */
+  .practice-heading{
+    font-family:'Fraunces', serif; font-size:1.4rem; font-weight:700;
+    margin: 44px 0 6px; padding-top:20px; border-top: 2px solid var(--ink);
+  }
+  .q-card{
+    background: rgba(255,255,255,0.6);
+    border:1.5px solid var(--ink);
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin: 18px 0;
+  }
+  .q-head{ display:flex; align-items:baseline; gap:10px; }
+  .q-num{
+    font-family:'IBM Plex Mono', monospace; font-weight:500;
+    color:#fff; border-radius:50%; width:26px; height:26px;
+    display:inline-flex; align-items:center; justify-content:center;
+    font-size:0.8rem; flex:none;
+  }
+  [data-subject="math"] .q-num{ background:var(--math); }
+  [data-subject="physics"] .q-num{ background:var(--physics); }
+  .q-text{ margin:0; }
+
+  .reveal-btn{
+    font-family:'IBM Plex Mono', monospace; font-size:0.75rem; letter-spacing:0.03em;
+    background:none; border:1.5px solid var(--ink); border-radius:20px;
+    padding:6px 14px; margin-top:12px; cursor:pointer; color:var(--ink);
+  }
+  .reveal-btn:hover{ background:var(--ink); color:var(--paper); }
+
+  .solution{
+    margin-top:14px; padding-top:12px; border-top:1px dashed var(--ink-soft);
+  }
+  .solution.hidden{ display:none; }
+  .solution .redcheck{ color:var(--red); font-family:'Caveat', cursive; font-size:1.3rem; margin-right:6px; }
+
+  footer{
+    text-align:center; margin-top:60px; font-family:'IBM Plex Mono', monospace;
+    font-size:0.7rem; color:var(--ink-soft); letter-spacing:0.04em;
+  }
+
+  /* AUTH BAR */
+  .auth-bar{
+    display:flex; align-items:center; gap:10px; font-family:'IBM Plex Mono', monospace; font-size:0.75rem;
+  }
+  .auth-bar input{
+    font-family:'IBM Plex Mono', monospace; font-size:0.75rem;
+    border:1.5px solid var(--ink); border-radius:6px; padding:6px 9px; background:#fff;
+    width:150px;
+  }
+  .auth-btn{
+    font-family:'IBM Plex Mono', monospace; font-size:0.75rem;
+    background:var(--ink); color:var(--paper); border:none; border-radius:6px;
+    padding:7px 12px; cursor:pointer;
+  }
+  .auth-btn.ghost{ background:none; color:var(--ink); border:1.5px solid var(--ink); }
+  .auth-msg{ font-size:0.7rem; color:var(--red); }
+  .who{ font-size:0.75rem; color:var(--ink-soft); }
+
+  /* progress checkbox on question cards */
+  .solved-toggle{
+    display:inline-flex; align-items:center; gap:6px; font-family:'IBM Plex Mono', monospace;
+    font-size:0.72rem; margin-left:10px; cursor:pointer; user-select:none; color:var(--ink-soft);
+  }
+  .solved-toggle input{ accent-color: var(--red); width:14px; height:14px; }
+  .q-card.solved{ border-color: var(--red); background: rgba(178,58,46,0.06); }
+
+  /* LEVEL SUB-TABS (Foundations vs DP Preview) */
+  .level-tabs{ display:flex; gap:8px; margin: 20px 0 26px; }
+  .level-btn{
+    font-family:'IBM Plex Mono', monospace; font-size:0.72rem; letter-spacing:0.03em; text-transform:uppercase;
+    border:1.5px solid var(--ink-soft); background:none; border-radius:20px;
+    padding:7px 14px; cursor:pointer; color:var(--ink-soft);
+  }
+  .level-btn.active{ background:var(--ink); color:var(--paper); border-color:var(--ink); }
+  .level-panel.hidden{ display:none; }
+  .dp-preview-banner{
+    font-family:'IBM Plex Mono', monospace; font-size:0.75rem; color:var(--ink-soft);
+    background: rgba(255,255,255,0.5); border:1px dashed var(--ink-soft); border-radius:8px;
+    padding:10px 14px; margin-bottom:20px;
+  }
+
+  /* VOICE TUTOR WIDGET */
+  .tutor-box{
+    margin: 50px 0; padding: 22px 24px; border-radius: 14px;
+    background: var(--ink); color: var(--paper);
+  }
+  .tutor-box h3{ font-family:'Fraunces', serif; margin:0 0 6px; font-size:1.2rem; }
+  .tutor-sub{ font-family:'IBM Plex Mono', monospace; font-size:0.72rem; color:#9aa4b0; margin-bottom:16px; }
+  .tutor-controls{ display:flex; align-items:center; gap:14px; }
+  .mic-btn{
+    width:54px; height:54px; border-radius:50%; border:2px solid var(--paper);
+    background:none; color:var(--paper); font-size:1.4rem; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; flex:none;
+    transition: background 0.15s;
+  }
+  .mic-btn.listening{ background:var(--red); border-color:var(--red); animation: pulse 1.2s infinite; }
+  @keyframes pulse{ 0%{box-shadow:0 0 0 0 rgba(178,58,46,0.5);} 70%{box-shadow:0 0 0 14px rgba(178,58,46,0);} 100%{box-shadow:0 0 0 0 rgba(178,58,46,0);} }
+  .tutor-status{ font-family:'IBM Plex Mono', monospace; font-size:0.78rem; color:#c8cdd4; }
+  .tutor-log{ margin-top:16px; font-size:0.92rem; line-height:1.6; max-height:220px; overflow-y:auto; }
+  .tutor-log .you{ color:var(--gold); }
+  .tutor-log .tutor{ color:#fff; margin-bottom:12px; }
+  .tutor-log .lbl{ font-family:'IBM Plex Mono', monospace; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.05em; opacity:0.6; margin-right:6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="site">
+    <div>
+      <div class="brand">Marginalia<sup>the notes in red</sup></div>
+      <div class="tagline">Grade 9 foundations → building toward the IB Diploma</div>
+    </div>
+    <div class="auth-bar" id="auth-bar">
+      <!-- signed-out state -->
+      <div id="auth-signed-out">
+        <input type="email" id="auth-email" placeholder="email">
+        <input type="password" id="auth-password" placeholder="password">
+        <button class="auth-btn" onclick="signUp()">Sign up</button>
+        <button class="auth-btn ghost" onclick="signIn()">Log in</button>
+        <div class="auth-msg" id="auth-msg"></div>
+      </div>
+      <!-- signed-in state -->
+      <div id="auth-signed-in" class="hidden">
+        <span class="who" id="who-label"></span>
+        <button class="auth-btn ghost" onclick="signOut()">Sign out</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-subject="math" onclick="showSubject('math')">Mathematics</button>
+    <button class="tab-btn" data-subject="physics" onclick="showSubject('physics')">Physics</button>
+  </div>
+
+  <!-- ============ MATH PANEL ============ -->
+  <section class="tab-panel" data-subject="math" id="panel-math">
+
+    <div class="level-tabs">
+      <button class="level-btn active" data-level="foundations" onclick="showLevel('math','foundations')">Foundations (Grade 9)</button>
+      <button class="level-btn" data-level="dp" onclick="showLevel('math','dp')">DP Preview (Grade 11–12)</button>
+    </div>
+
+    <!-- ---- FOUNDATIONS ---- -->
+    <div class="level-panel" data-subject="math" data-level="foundations">
+      <div class="sheet">
+        <div class="main-col">
+          <div class="lesson-kicker">Algebra &amp; Functions · Grade 9 foundation</div>
+          <h2 class="lesson-title">Linear Functions: Gradient and Intercept</h2>
+
+          <div class="lesson-body">
+            <p>A linear function is really just a rule for a straight line, and every straight line is completely described by two numbers: how steep it is, and where it crosses the y-axis. Once you can read those two numbers off an equation, you can picture the line in your head without plotting a single point.</p>
+
+            <p>We write it like this:</p>
+
+            <div class="eq-block">
+              \[ y = mx + c \]
+            </div>
+
+            <p>Here <span class="katex-eq">\(m\)</span> is the <strong>gradient</strong> — how much <span class="katex-eq">\(y\)</span> goes up for every step <span class="katex-eq">\(x\)</span> takes to the right. And <span class="katex-eq">\(c\)</span> is the <strong>y-intercept</strong> — the value of <span class="katex-eq">\(y\)</span> when <span class="katex-eq">\(x=0\)</span>, i.e. where the line crosses the vertical axis.</p>
+
+            <p>Think of gradient as a rate: if <span class="katex-eq">\(m=3\)</span>, every time <span class="katex-eq">\(x\)</span> increases by 1, <span class="katex-eq">\(y\)</span> increases by 3. If <span class="katex-eq">\(m\)</span> is negative, the line goes downhill as you move right. This is exactly the same idea you'll meet again later as "gradient of a curve" in calculus — you're building the intuition for that right now.</p>
+
+            <div class="worked">
+              <h4>Worked example — find the equation of a line</h4>
+              <div class="step"><span class="tag">01</span>A line passes through \((0, 4)\) and \((2, 10)\). Find its equation.</div>
+              <div class="step"><span class="tag">02</span>Gradient: how much \(y\) changes divided by how much \(x\) changes: \( m = \dfrac{10-4}{2-0} = \dfrac{6}{2} = 3 \)</div>
+              <div class="step"><span class="tag">03</span>The point \((0,4)\) is exactly where \(x=0\) — so the intercept is \( c = 4 \)</div>
+              <div class="step"><span class="tag">04</span>Equation: \( y = 3x + 4 \)</div>
+            </div>
+
+            <p>Notice we didn't need a formula to "find c" — we just used the point where the line crosses the axis directly. That's usually the fastest way, when you're given it.</p>
+          </div>
+        </div>
+
+        <div class="margin-col">
+          <div class="note"><span class="mark">→</span> gradient = <span class="note-underline">rise over run</span></div>
+          <div class="note">c is just "where x = 0" <span class="mark">✓</span></div>
+          <div class="note">this idea comes back in calculus!</div>
+        </div>
+      </div>
+
+      <h3 class="practice-heading">Practice</h3>
+
+      <div class="q-card" id="card-math-f1" data-qid="math-f1">
+        <div class="q-head"><span class="q-num">1</span><p class="q-text">Find the gradient and y-intercept of \( y = -2x + 7 \).</p><label class="solved-toggle"><input type="checkbox" onchange="toggleSolved('math-f1', this.checked)"> solved</label></div>
+        <button class="reveal-btn" onclick="toggleSolution(this)">Show solution</button>
+        <div class="solution hidden">
+          <p><span class="redcheck">✓</span> Gradient \(m=-2\) (line slopes downhill), y-intercept \(c=7\) (crosses the axis at \(y=7\)).</p>
+        </div>
+      </div>
+
+      <div class="q-card" id="card-math-f2" data-qid="math-f2">
+        <div class="q-head"><span class="q-num">2</span><p class="q-text">A line passes through \((0,-1)\) and \((3,5)\). Find its equation.</p><label class="solved-toggle"><input type="checkbox" onchange="toggleSolved('math-f2', this.checked)"> solved</label></div>
+        <button class="reveal-btn" onclick="toggleSolution(this)">Show solution</button>
+        <div class="solution hidden">
+          <p><span class="redcheck">✓</span> \( m = \dfrac{5-(-1)}{3-0} = 2 \), and since \((0,-1)\) gives \(c=-1\): \( y = 2x - 1 \).</p>
+        </div>
+      </div>
+
+      <div class="q-card" id="card-math-f3" data-qid="math-f3">
+        <div class="q-head"><span class="q-num">3</span><p class="q-text">Two lines have gradients 4 and \(\tfrac14\). What do you notice, and what might that mean geometrically?</p><label class="solved-toggle"><input type="checkbox" onchange="toggleSolved('math-f3', this.checked)"> solved</label></div>
+        <button class="reveal-btn" onclick="toggleSolution(this)">Show solution</button>
+        <div class="solution hidden">
+          <p><span class="redcheck">✓</span> The gradients are reciprocals of each other. That's a clue, not a coincidence — reciprocal gradients (with opposite sign) show up later when we study perpendicular lines.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---- DP PREVIEW ---- -->
+    <div class="level-panel hidden" data-subject="math" data-level="dp">
+      <div class="dp-preview-banner">This is what you'll be doing in Grade 11–12 (IB Diploma). It builds directly on the gradient idea from Foundations — same question, applied to curves instead of straight lines.</div>
+    <div class="sheet">
+      <div class="main-col">
+        <div class="lesson-kicker">Calculus · AA SL &amp; HL, AI SL &amp; HL (core)</div>
+        <h2 class="lesson-title">Differentiation from First Principles</h2>
+
+        <div class="lesson-body">
+          <p>Let's start with a question you already know the answer to informally: how steep is a curve at one exact point? A straight line has one gradient everywhere. A curve doesn't — its steepness keeps changing. So we need a way to "zoom in" on a single point until the curve looks straight, and measure the gradient there.</p>
+
+          <p>Here's the idea. Pick a point on the curve at <span class="katex-eq">\(x\)</span>, and a second point a little further along at <span class="katex-eq">\(x+h\)</span>. Join them with a straight line — a <em>chord</em>. Its gradient is:</p>
+
+          <div class="eq-block">
+            \[ \text{gradient of chord} = \frac{f(x+h) - f(x)}{h} \]
+          </div>
+
+          <p>Now shrink <span class="katex-eq">\(h\)</span> towards zero. The second point slides back towards the first, the chord rotates, and in the limit it becomes the <em>tangent</em> — the exact gradient at that one point. That's the whole idea behind the definition:</p>
+
+          <div class="eq-block">
+            \[ f'(x) = \lim_{h \to 0} \frac{f(x+h)-f(x)}{h} \]
+          </div>
+
+          <p>This is what "differentiating from first principles" means — no shortcut rules, just this limit, done directly.</p>
+
+          <div class="worked">
+            <h4>Worked example — differentiate <span class="katex-eq">\(f(x) = x^2\)</span> from first principles</h4>
+            <div class="step"><span class="tag">01</span>Set up the definition: \( f'(x) = \lim_{h\to 0}\dfrac{f(x+h)-f(x)}{h} \)</div>
+            <div class="step"><span class="tag">02</span>Substitute: \( f(x+h) = (x+h)^2 = x^2 + 2xh + h^2 \)</div>
+            <div class="step"><span class="tag">03</span>So \( f(x+h)-f(x) = 2xh + h^2 \)</div>
+            <div class="step"><span class="tag">04</span>Divide by \(h\): \( \dfrac{2xh+h^2}{h} = 2x + h \)</div>
+            <div class="step"><span class="tag">05</span>Let \(h \to 0\): \( f'(x) = 2x \)</div>
+          </div>
+
+          <p>Notice every step is legal algebra <em>until</em> the very last one — we only let <span class="katex-eq">\(h\to 0\)</span> after the division has already cancelled the awkward \(h\) in the denominator. That order matters, and examiners will check you've shown it.</p>
+        </div>
+      </div>
+
+      <div class="margin-col">
+        <div class="note"><span class="mark">→</span> this is the <span class="note-underline">only</span> bit examiners actually mark closely</div>
+        <div class="note">nice — this cancels <span class="mark">✓</span></div>
+        <div class="note">don't skip this step in an exam!</div>
+      </div>
+    </div>
+
+    <h3 class="practice-heading">Practice</h3>
+
+    <div class="q-card" id="card-math-1" data-qid="math-1">
+      <div class="q-head"><span class="q-num">1</span><p class="q-text">Differentiate \( f(x) = 3x^2 \) from first principles.</p><label class="solved-toggle"><input type="checkbox" onchange="toggleSolved('math-1', this.checked)"> solved</label></div>
+      <button class="reveal-btn" onclick="toggleSolution(this)">Show solution</button>
+      <div class="solution hidden">
+        <p><span class="redcheck">✓</span> \( f(x+h)-f(x) = 3(x+h)^2 - 3x^2 = 6xh+3h^2 \), divide by \(h\): \(6x+3h\), let \(h\to0\): \( f'(x) = 6x \).</p>
+      </div>
+    </div>
+
+    <div class="q-card" id="card-math-2" data-qid="math-2">
+      <div class="q-head"><span class="q-num">2</span><p class="q-text">Differentiate \( f(x) = x^2 + 4x \) from first principles.</p><label class="solved-toggle"><input type="checkbox" onchange="toggleSolved('math-2', this.checked)"> solved</label></div>
+      <button class="reveal-btn" onclick="toggleSolution(this)">Show solution</button>
+      <div class="solution hidden">
+        <p><span class="redcheck">✓</span> Expand \(f(x+h)\), subtract, divide by \(h\) to get \(2x+4+h\), then let \(h\to0\): \( f'(x) = 2x+4 \).</p>
+      </div>
+    </div>
+
+    <div class="q-card" id="card-math-3" data-qid="math-3">
+      <div class="q-head"><span class="q-num">3</span><p class="q-text">(HL) Show from first principles that the derivative of \( f(x) = x^3 \) is \( 3x^2 \).</p><label class="solved-toggle"><input type="checkbox" onchange="toggleSolved('math-3', this.checked)"> solved</label></div>
+      <button class="reveal-btn" onclick="toggleSolution(this)">Show solution</button>
+      <div class="solution hidden">
+        <p><span class="redcheck">✓</span> Expand \((x+h)^3 = x^3+3x^2h+3xh^2+h^3\). Subtract \(x^3\), divide by \(h\): \(3x^2+3xh+h^2\). Let \(h\to0\): the last two terms vanish, leaving \(3x^2\).</p>
+      </div>
+    </div>
+    </div>
+  </section>
+
+  <!-- ============ PHYSICS PANEL ============ -->
+  <section class="tab-panel hidden" data-subject="physics" id="panel-physics">
+
+    <div class="level-tabs">
+      <button class="level-btn active" data-level="foundations" onclick="showLevel('physics','foundations')">Foundations (Grade 9)</button>
+      <button class="level-btn" data-level="dp" onclick="showLevel('physics','dp')">DP Preview (Grade 11–12)</button>
+    </div>
+
+    <!-- ---- FOUNDATIONS ---- -->
+    <div class="level-panel" data-subject="physics" data-level="foundations">
+      <div class="sheet">
+        <div class="main-col">
+          <div class="lesson-kicker">Mechanics · Grade 9 foundation</div>
+          <h2 class="lesson-title">Newton's Laws: Force, Mass, and Acceleration</h2>
+
+          <div class="lesson-body">
+            <p>Here's a question worth sitting with: if nothing pushes or pulls an object, what does it do? Most people's gut instinct is "it slows down and stops." But that's only true because of friction. Out in space, with nothing touching it, an object that's moving just... keeps moving, forever, in a straight line. That's Newton's First Law: an object stays at rest, or keeps moving at constant velocity, unless a force acts on it.</p>
+
+            <p>So force isn't what keeps things moving — it's what <em>changes</em> how they're moving. That's Newton's Second Law, and it's one of the most useful equations you'll ever learn:</p>
+
+            <div class="eq-block">
+              \[ F = ma \]
+            </div>
+
+            <p>Force equals mass times acceleration. Push harder (\(F\) up) and something accelerates faster. Push the same force on something heavier (\(m\) up) and it accelerates slower. That trade-off is worth feeling in your gut, not just memorizing: try pushing an empty shopping cart, then a full one, with the same effort — the full one barely speeds up.</p>
+
+            <div class="worked">
+              <h4>Worked example — pushing a box</h4>
+              <div class="step"><span class="tag">01</span>A 10 kg box is pushed with a force of 25 N across a frictionless floor. Find its acceleration.</div>
+              <div class="step"><span class="tag">02</span>Rearrange: \( a = \dfrac{F}{m} \)</div>
+              <div class="step"><span class="tag">03</span>Substitute: \( a = \dfrac{25}{10} = 2.5\ \text{m/s}^2 \)</div>
+              <div class="step"><span class="tag">04</span>So every second, the box's speed increases by 2.5 m/s.</div>
+            </div>
+
+            <p>Keep units consistent — force in newtons, mass in kilograms — and the acceleration comes out in m/s² automatically. That's not a coincidence; the newton is <em>defined</em> so that this works out cleanly.</p>
+          </div>
+        </div>
+
+        <div class="margin-col">
+          <div class="note"><span class="mark">→</span> no force = <span class="note-underline">no change</span> in motion</div>
+          <div class="note">heavier = harder to accelerate <span class="mark">✓</span></div>
+          <div class="note">keep units in kg, N, m/s²</div>
+        </div>
+      </div>
+
+      <h3 class="practice-heading">Practice</h3>
+
+      <div class="q-card" id="card-phys-f1" data-qid="phys-f1">
+        <div class="q-head"><span class="q-num">1</span><p class="q-text">A 5 kg object accelerates at 3 m/s². What force is acting on it?</p><label class="solved-toggle"><input type="checkbox" onchange="toggleSolved('phys-f1', this.checked)"> solved</label></div>
+        <button class="reveal-btn" onclick="toggleSolution(this)">Show solution</button>
+        <div class="solution hidden">
+          <p><span class="redcheck">✓</span> \( F = ma = 5 \times 3 = 15\ \text{N} \).</p>
+        </div>
+      </div>
+
+      <div class="q-card" id="card-phys-f2" data-qid="phys-f2">
+        <div class="q-head"><span class="q-num">2</span><p class="q-text">A 40 N force acts on an object, giving it an acceleration of 8 m/s². Find its mass.</p><label class="solved-toggle"><input type="checkbox" onchange="toggleSolved('phys-f2', this.checked)"> solved</label></div>
+        <button class="reveal-btn" onclick="toggleSolution(this)">Show solution</button>
+        <div class="solution hidden">
+          <p><span class="redcheck">✓</span> \( m = \dfrac{F}{a} = \dfrac{40}{8} = 5\ \text{kg} \).</p>
+        </div>
+      </div>
+
+      <div class="q-card" id="card-phys-f3" data-qid="phys-f3">
+        <div class="q-head"><span class="q-num">3</span><p class="q-text">Why does a fully-loaded truck take longer to stop than an empty one, if the brakes apply the same braking force?</p><label class="solved-toggle"><input type="checkbox" onchange="toggleSolved('phys-f3', this.checked)"> solved</label></div>
+        <button class="reveal-btn" onclick="toggleSolution(this)">Show solution</button>
+        <div class="solution hidden">
+          <p><span class="redcheck">✓</span> Same force, bigger mass, means smaller acceleration (\(a = F/m\)) — so it takes longer to slow down. This is exactly why braking distance rules depend on vehicle load.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---- DP PREVIEW ---- -->
+    <div class="level-panel hidden" data-subject="physics" data-level="dp">
+      <div class="dp-preview-banner">This is what you'll be doing in Grade 11–12 (IB Diploma). Same \(F=ma\) idea from Foundations, now applied to circular paths instead of straight lines.</div>
+    <div class="sheet">
+      <div class="main-col">
+        <div class="lesson-kicker">Mechanics · Physics SL &amp; HL</div>
+        <h2 class="lesson-title">Circular Motion</h2>
+
+        <div class="lesson-body">
+          <p>Here's something that trips people up at first: an object moving at <em>constant speed</em> in a circle is still <em>accelerating</em>. That feels wrong until you remember what acceleration actually means — a change in velocity, and velocity is a vector. Speed can stay fixed while direction keeps changing, and that's enough.</p>
+
+          <p>So which way does this acceleration point? Always towards the centre of the circle. That's why we call it <strong>centripetal acceleration</strong> — "centre-seeking." Its magnitude is:</p>
+
+          <div class="eq-block">
+            \[ a = \frac{v^2}{r} \]
+          </div>
+
+          <p>where <span class="katex-eq">\(v\)</span> is the speed and <span class="katex-eq">\(r\)</span> is the radius of the circle. By Newton's second law, this acceleration needs a real, physical force to cause it — the <strong>centripetal force</strong>:</p>
+
+          <div class="eq-block">
+            \[ F = \frac{mv^2}{r} \]
+          </div>
+
+          <p>One thing to be very careful about in IB exams: centripetal force is not a new, separate force sitting on your free-body diagram. It's the <em>name for the net force</em> — tension, gravity, friction, the normal force, whatever is actually providing the pull towards the centre. Never draw an extra arrow labelled "centripetal force."</p>
+
+          <div class="worked">
+            <h4>Worked example — a ball on a string</h4>
+            <div class="step"><span class="tag">01</span>A 0.20 kg ball is swung in a horizontal circle of radius 0.50 m at 4.0 m/s.</div>
+            <div class="step"><span class="tag">02</span>Centripetal acceleration: \( a = \dfrac{v^2}{r} = \dfrac{4.0^2}{0.50} = 32\ \text{m/s}^2 \)</div>
+            <div class="step"><span class="tag">03</span>Centripetal force needed: \( F = ma = 0.20 \times 32 = 6.4\ \text{N} \)</div>
+            <div class="step"><span class="tag">04</span>In this case, that force <em>is</em> the tension in the string — nothing else is pulling it inward.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="margin-col">
+        <div class="note"><span class="mark">→</span> constant <span class="note-underline">speed</span>, changing <span class="note-underline">velocity</span></div>
+        <div class="note">common mistake: don't add an extra force arrow!</div>
+        <div class="note">points inward, always <span class="mark">✓</span></div>
+      </div>
+    </div>
+
+    <h3 class="practice-heading">Practice</h3>
+
+    <div class="q-card" id="card-phys-1" data-qid="phys-1">
+      <div class="q-head"><span class="q-num">1</span><p class="q-text">A car of mass 1200 kg rounds a flat curve of radius 40 m at 15 m/s. Calculate the centripetal force needed.</p><label class="solved-toggle"><input type="checkbox" onchange="toggleSolved('phys-1', this.checked)"> solved</label></div>
+      <button class="reveal-btn" onclick="toggleSolution(this)">Show solution</button>
+      <div class="solution hidden">
+        <p><span class="redcheck">✓</span> \( F = \dfrac{mv^2}{r} = \dfrac{1200 \times 15^2}{40} = 6750\ \text{N} \). On a flat road, this is provided entirely by friction.</p>
+      </div>
+    </div>
+
+    <div class="q-card" id="card-phys-2" data-qid="phys-2">
+      <div class="q-head"><span class="q-num">2</span><p class="q-text">A satellite orbits Earth at radius \(7.0\times10^6\) m with speed \(7.5\times10^3\) m/s. Find its centripetal acceleration.</p><label class="solved-toggle"><input type="checkbox" onchange="toggleSolved('phys-2', this.checked)"> solved</label></div>
+      <button class="reveal-btn" onclick="toggleSolution(this)">Show solution</button>
+      <div class="solution hidden">
+        <p><span class="redcheck">✓</span> \( a = \dfrac{v^2}{r} = \dfrac{(7.5\times10^3)^2}{7.0\times10^6} \approx 8.0\ \text{m/s}^2 \) — this is just gravity, pulling it "inward" the whole time.</p>
+      </div>
+    </div>
+
+    <div class="q-card" id="card-phys-3" data-qid="phys-3">
+      <div class="q-head"><span class="q-num">3</span><p class="q-text">(HL) A pilot performs a vertical circular loop of radius 250 m at 90 m/s. Find the apparent weight the pilot feels at the <em>bottom</em> of the loop, given mass 70 kg.</p><label class="solved-toggle"><input type="checkbox" onchange="toggleSolved('phys-3', this.checked)"> solved</label></div>
+      <button class="reveal-btn" onclick="toggleSolution(this)">Show solution</button>
+      <div class="solution hidden">
+        <p><span class="redcheck">✓</span> At the bottom, seat pushes up (\(N\)) and gravity pulls down; net upward force is centripetal: \( N - mg = \dfrac{mv^2}{r} \). So \( N = mg + \dfrac{mv^2}{r} = 70(9.8) + \dfrac{70\times 90^2}{250} \approx 686 + 2268 = 2954\ \text{N} \) — the pilot feels about 4.3 times their normal weight.</p>
+      </div>
+    </div>
+    </div>
+  </section>
+
+  <div class="tutor-box">
+    <h3>Talk to your tutor</h3>
+    <div class="tutor-sub">press the mic, ask a question out loud, listen to the answer</div>
+    <div class="tutor-controls">
+      <button class="mic-btn" id="mic-btn" onclick="toggleListening()">🎙️</button>
+      <div class="tutor-status" id="tutor-status">Tap the mic and ask something — e.g. "why does a heavier box accelerate slower?"</div>
+    </div>
+    <div class="tutor-log" id="tutor-log"></div>
+  </div>
+
+  <footer>prototype build — content and design direction, ready to expand into a full site</footer>
+</div>
+
+<script>
+  /* ====================================================================
+     SUPABASE CONFIG — replace these two lines with YOUR project's values.
+     Get them from: Supabase dashboard → Project Settings → API
+     ==================================================================== */
+  const SUPABASE_URL = "https://YOUR-PROJECT-ID.supabase.co";
+  const SUPABASE_ANON_KEY = "YOUR-ANON-PUBLIC-KEY";
+
+  const sb = SUPABASE_URL.includes("YOUR-PROJECT-ID")
+    ? null // not configured yet — auth/progress silently disabled so the page still works
+    : window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  function showAuthMsg(msg, isError=true){
+    const el = document.getElementById('auth-msg');
+    el.textContent = msg;
+    el.style.color = isError ? 'var(--red)' : 'var(--physics)';
+  }
+
+  async function signUp(){
+    if(!sb) return showAuthMsg("Backend not configured yet — see README.");
+    const email = document.getElementById('auth-email').value;
+    const password = document.getElementById('auth-password').value;
+    const { error } = await sb.auth.signUp({ email, password });
+    showAuthMsg(error ? error.message : "Check your email to confirm your account.", !!error);
+  }
+
+  async function signIn(){
+    if(!sb) return showAuthMsg("Backend not configured yet — see README.");
+    const email = document.getElementById('auth-email').value;
+    const password = document.getElementById('auth-password').value;
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if(error) showAuthMsg(error.message);
+    else { showAuthMsg(""); refreshAuthUI(); loadProgress(); }
+  }
+
+  async function signOut(){
+    if(!sb) return;
+    await sb.auth.signOut();
+    refreshAuthUI();
+  }
+
+  async function refreshAuthUI(){
+    if(!sb) return;
+    const { data: { user } } = await sb.auth.getUser();
+    document.getElementById('auth-signed-out').classList.toggle('hidden', !!user);
+    document.getElementById('auth-signed-in').classList.toggle('hidden', !user);
+    if(user) document.getElementById('who-label').textContent = user.email;
+  }
+
+  async function toggleSolved(qid, solved){
+    document.getElementById('card-' + qid).classList.toggle('solved', solved);
+    if(!sb) return; // no backend configured — just a visual toggle
+    const { data: { user } } = await sb.auth.getUser();
+    if(!user) return showAuthMsg("Log in to save your progress.");
+    await sb.from('progress').upsert({ user_id: user.id, question_id: qid, solved, updated_at: new Date().toISOString() });
+  }
+
+  async function loadProgress(){
+    if(!sb) return;
+    const { data: { user } } = await sb.auth.getUser();
+    if(!user) return;
+    const { data } = await sb.from('progress').select('question_id, solved').eq('user_id', user.id);
+    (data || []).forEach(row => {
+      const card = document.getElementById('card-' + row.question_id);
+      if(!card) return;
+      const box = card.querySelector('.solved-toggle input');
+      box.checked = row.solved;
+      card.classList.toggle('solved', row.solved);
+    });
+  }
+
+  function showSubject(subject){
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.subject === subject));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('hidden', p.dataset.subject !== subject));
+  }
+  function showLevel(subject, level){
+    document.querySelectorAll(`.tab-panel[data-subject="${subject}"] .level-btn`).forEach(b => b.classList.toggle('active', b.dataset.level === level));
+    document.querySelectorAll(`.level-panel[data-subject="${subject}"]`).forEach(p => p.classList.toggle('hidden', p.dataset.level !== level));
+  }
+  function toggleSolution(btn){
+    const sol = btn.nextElementSibling;
+    sol.classList.toggle('hidden');
+    btn.textContent = sol.classList.contains('hidden') ? 'Show solution' : 'Hide solution';
+  }
+
+  /* ====================================================================
+     VOICE TUTOR — listens via the browser's speech recognition, sends the
+     question to a backend endpoint (/api/tutor, see README) which calls
+     an AI model, then speaks the reply back using the browser's built-in
+     text-to-speech. Works best in Chrome (desktop or Android); Safari/iOS
+     speech recognition support is limited.
+     ==================================================================== */
+  const TUTOR_ENDPOINT = "/api/tutor"; // set up per README once deployed
+
+  let recognition = null;
+  let listening = false;
+
+  function initRecognition(){
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if(!SR){
+      document.getElementById('tutor-status').textContent = "Your browser doesn't support voice input — try Chrome.";
+      document.getElementById('mic-btn').disabled = true;
+      return null;
+    }
+    const rec = new SR();
+    rec.lang = 'en-US';
+    rec.interimResults = false;
+    rec.maxAlternatives = 1;
+    rec.onresult = (e) => {
+      const heard = e.results[0][0].transcript;
+      askTutor(heard);
+    };
+    rec.onerror = () => setListening(false);
+    rec.onend = () => setListening(false);
+    return rec;
+  }
+
+  function setListening(on){
+    listening = on;
+    document.getElementById('mic-btn').classList.toggle('listening', on);
+    document.getElementById('tutor-status').textContent = on ? "Listening..." : "Tap the mic and ask something.";
+  }
+
+  function toggleListening(){
+    if(!recognition) recognition = initRecognition();
+    if(!recognition) return;
+    if(listening){ recognition.stop(); return; }
+    setListening(true);
+    recognition.start();
+  }
+
+  function logTutor(role, text){
+    const log = document.getElementById('tutor-log');
+    const div = document.createElement('div');
+    div.className = role;
+    div.innerHTML = `<span class="lbl">${role === 'you' ? 'You' : 'Tutor'}</span>${text}`;
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function speak(text){
+    if(!window.speechSynthesis) return;
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.rate = 0.98;
+    window.speechSynthesis.speak(utter);
+  }
+
+  async function askTutor(question){
+    logTutor('you', question);
+    document.getElementById('tutor-status').textContent = "Thinking...";
+    try{
+      const res = await fetch(TUTOR_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question, studentAge: 14, level: 'IB MYP / Grade 9 foundation' })
+      });
+      if(!res.ok) throw new Error('backend not set up yet');
+      const data = await res.json();
+      logTutor('tutor', data.answer);
+      speak(data.answer);
+      document.getElementById('tutor-status').textContent = "Tap the mic and ask something.";
+    }catch(err){
+      const msg = "The tutor backend isn't connected yet — see the README to set up /api/tutor.";
+      logTutor('tutor', msg);
+      document.getElementById('tutor-status').textContent = "Backend not configured.";
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    renderMathInElement(document.body, {
+      delimiters: [
+        {left: "\\[", right: "\\]", display: true},
+        {left: "\\(", right: "\\)", display: false}
+      ]
+    });
+    if(sb){ refreshAuthUI(); loadProgress(); }
+  });
+</script>
+</body>
+</html>
